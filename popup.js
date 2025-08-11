@@ -20,16 +20,30 @@ async function analyzeAllTabs() {
     
     // Get all tabs from all windows
     const allTabs = [];
+    const tabsByDomain = {};
+    
     for (const window of windows) {
       const tabs = await browser.tabs.query({ windowId: window.id });
       allTabs.push(...tabs);
+      
+      // Group tabs by domain for easier manipulation
+      tabs.forEach(tab => {
+        const domain = getDomainFromUrl(tab.url);
+        if (!tabsByDomain[domain]) {
+          tabsByDomain[domain] = [];
+        }
+        tabsByDomain[domain].push({
+          ...tab,
+          windowId: window.id
+        });
+      });
     }
     
     // Analyze tab data
     const domainCounts = {};
     const windowTabCounts = [];
     
-    // Group tabs by window and count domains
+    // Count tabs per domain and per window
     for (const window of windows) {
       const windowTabs = await browser.tabs.query({ windowId: window.id });
       windowTabCounts.push(windowTabs.length);
@@ -52,7 +66,8 @@ async function analyzeAllTabs() {
       uniqueDomains: Object.keys(domainCounts).length,
       avgTabsPerWindow: windows.length > 0 ? (allTabs.length / windows.length).toFixed(1) : 0,
       topDomains: sortedDomains,
-      windowTabCounts: windowTabCounts
+      windowTabCounts: windowTabCounts,
+      tabsByDomain: tabsByDomain
     };
     
     return stats;
@@ -60,6 +75,91 @@ async function analyzeAllTabs() {
     console.error('Error analyzing tabs:', error);
     throw error;
   }
+}
+
+// Function to move all tabs of a domain to the same window
+async function moveTabsToSameWindow(domain, tabsByDomain, windowIds) {
+  try {
+    const domainTabs = tabsByDomain[domain];
+    if (!domainTabs || domainTabs.length <= 1) {
+      showMessage('Only one tab found for this domain', 'error');
+      return;
+    }
+    
+    if (windowIds.size <= 1) {
+      showMessage('All tabs are already in the same window', 'error');
+      return;
+    }
+    
+    // Group tabs by window
+    const tabsByWindow = {};
+    domainTabs.forEach(tab => {
+      if (!tabsByWindow[tab.windowId]) {
+        tabsByWindow[tab.windowId] = [];
+      }
+      tabsByWindow[tab.windowId].push(tab);
+    });
+    
+    const windowIdArray = Array.from(windowIds);
+    
+    // Find the window with the most tabs for this domain (target window)
+    const targetWindowId = windowIdArray.reduce((maxWindowId, windowId) => {
+      const maxCount = tabsByWindow[maxWindowId] ? tabsByWindow[maxWindowId].length : 0;
+      const currentCount = tabsByWindow[windowId] ? tabsByWindow[windowId].length : 0;
+      return currentCount > maxCount ? windowId : maxWindowId;
+    });
+    
+    // Move all tabs from other windows to the target window
+    const tabsToMove = [];
+    windowIdArray.forEach(windowId => {
+      if (windowId != targetWindowId && tabsByWindow[windowId]) {
+        tabsToMove.push(...tabsByWindow[windowId]);
+      }
+    });
+    
+    if (tabsToMove.length === 0) {
+      showMessage('All tabs are already in the same window', 'error');
+      return;
+    }
+    
+    console.log(`Moving ${tabsToMove.length} tabs to window ${targetWindowId}`);
+    
+    // Move tabs one by one
+    for (const tab of tabsToMove) {
+      await browser.tabs.move(tab.id, {
+        windowId: parseInt(targetWindowId),
+        index: -1 // Move to the end
+      });
+    }
+    
+    showMessage(`Moved ${tabsToMove.length} tab(s) for ${domain} to the same window`, 'success');
+    
+    // Refresh stats after 1 second
+    setTimeout(loadTabStats, 1000);
+    
+  } catch (error) {
+    console.error('Error moving tabs:', error);
+    showMessage(`Error moving tabs: ${error.message}`, 'error');
+  }
+}
+
+// Function to show messages to user
+function showMessage(text, type = 'success') {
+  const messageContainer = document.getElementById('messageContainer');
+  const messageDiv = document.createElement('div');
+  messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+  messageDiv.textContent = text;
+  
+  // Clear previous messages
+  messageContainer.innerHTML = '';
+  messageContainer.appendChild(messageDiv);
+  
+  // Auto-remove message after 5 seconds
+  setTimeout(() => {
+    if (messageContainer.contains(messageDiv)) {
+      messageContainer.removeChild(messageDiv);
+    }
+  }, 5000);
 }
 
 // Function to display statistics
@@ -86,15 +186,60 @@ function displayStats(stats) {
     // Add rank number for top 3
     const rankIcon = index < 3 ? ['🥇', '🥈', '🥉'][index] : `${index + 1}.`;
     
-    domainElement.innerHTML = `
-      <span class="domain-name" title="${domain}">
+    // Check if tabs are spread across multiple windows
+    const domainTabs = stats.tabsByDomain[domain] || [];
+    const windowIds = new Set(domainTabs.map(tab => tab.windowId));
+    const isSpreadAcrossWindows = windowIds.size > 1;
+    
+    console.log(`=== DOMAIN: ${domain} ===`);
+    console.log(`  Total tabs: ${count}`);
+    console.log(`  Domain tabs found:`, domainTabs);
+    console.log(`  Window IDs:`, Array.from(windowIds));
+    console.log(`  Windows count: ${windowIds.size}`);
+    console.log(`  isSpreadAcrossWindows: ${isSpreadAcrossWindows}`);
+    console.log(`  Should show button: ${isSpreadAcrossWindows && count > 1}`);
+    
+    const domainInfo = document.createElement('div');
+    domainInfo.className = 'domain-info';
+    domainInfo.innerHTML = `
+      <span class="domain-name" title="${domain} (${windowIds.size} windows)">
         ${rankIcon} ${domain}
       </span>
-      <span class="domain-count">${count}</span>
     `;
+
+    const domainActions = document.createElement('div');
+    domainActions.className = 'domain-actions';
+
+    if (isSpreadAcrossWindows && count > 1) {
+      const moveBtn = document.createElement('button');
+      moveBtn.className = 'move-btn';
+      moveBtn.innerHTML = '📂 Group';
+      moveBtn.title = `Move all ${domain} tabs to same window`;
+      moveBtn.addEventListener('click', () => moveTabsToSameWindow(domain, window.currentStats.tabsByDomain, windowIds));
+      domainActions.appendChild(moveBtn);
+      console.log(`  ✓ ADDED Group button for ${domain}`);
+    } else {
+      const windowIndicator = document.createElement('small');
+      windowIndicator.style.color = '#999';
+      windowIndicator.style.fontSize = '9px';
+      windowIndicator.textContent = `${windowIds.size}w`;
+      domainActions.appendChild(windowIndicator);
+      console.log(`  ✗ NO Group button - spread: ${isSpreadAcrossWindows}, count: ${count}`);
+    }
+
+    const countBadge = document.createElement('span');
+    countBadge.className = 'domain-count';
+    countBadge.textContent = count;
+    domainActions.appendChild(countBadge);
+
+    domainElement.appendChild(domainInfo);
+    domainElement.appendChild(domainActions);
     
     domainListElement.appendChild(domainElement);
   });
+  
+  // Store current stats globally for button access
+  window.currentStats = stats;
 }
 
 // Function to show loading state
@@ -136,6 +281,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Add refresh button functionality
   document.getElementById('refreshBtn').addEventListener('click', loadTabStats);
+  
+  // Make moveTabsToSameWindow available globally
+  window.moveTabsToSameWindow = moveTabsToSameWindow;
 });
 
 // Optional: Auto-refresh every 30 seconds if popup stays open

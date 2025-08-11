@@ -61,6 +61,18 @@
       border-bottom: 1px solid #eee;
     }
     
+    .domain-info {
+      display: flex;
+      align-items: center;
+      flex-grow: 1;
+    }
+    
+    .domain-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
     .domain-name {
       font-weight: 500;
       color: #333;
@@ -80,10 +92,50 @@
       text-align: center;
     }
     
+    .move-btn {
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    
+    .move-btn:hover {
+      background: #1976D2;
+    }
+    
+    .move-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
     .loading {
       text-align: center;
       padding: 20px;
       color: #666;
+    }
+    
+    .success-message {
+      background: #4CAF50;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+    
+    .error-message {
+      background: #f44336;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      text-align: center;
     }
     
     .refresh-btn {
@@ -109,6 +161,8 @@
   </div>
   
   <button id="refreshBtn" class="refresh-btn">🔄 Refresh Stats</button>
+  
+  <div id="messageContainer"></div>
   
   <div id="loading" class="loading">
     Loading tab statistics...
