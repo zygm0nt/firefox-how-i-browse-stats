@@ -1,6 +1,6 @@
 # Tab Stats Analyzer - Firefox Extension
 
-A simple and powerful Firefox extension that analyzes all your open tabs across all browser windows and provides comprehensive statistics about your browsing patterns.
+A powerful Firefox extension that analyzes all your open tabs across all browser windows and provides comprehensive statistics and tab management tools for organizing your browsing sessions.
 
 ## 🌟 Features
 
@@ -14,6 +14,8 @@ A simple and powerful Firefox extension that analyzes all your open tabs across 
   - Sorted by number of open tabs
   - Visual ranking with medals for top 3 domains
   - Tab count badges for each domain
+  - **📂 Group button**: Consolidate tabs spread across multiple windows into one window
+  - **🪟 New button**: Move all domain tabs to a dedicated new window
 
 - **🔄 Real-time Updates**: 
   - Manual refresh button for instant updates
@@ -23,6 +25,12 @@ A simple and powerful Firefox extension that analyzes all your open tabs across 
   - Modern, user-friendly design
   - Easy-to-read statistics layout
   - Responsive popup window
+  - Smart action buttons that appear contextually
+
+- **🔧 Tab Management Actions**:
+  - **Group tabs**: Consolidate scattered tabs of the same domain into one window
+  - **New window**: Move all tabs of a domain to a dedicated new window
+  - **Smart button logic**: Different actions available based on tab distribution
 
 ## 📋 Requirements
 
@@ -80,16 +88,26 @@ For a permanent installation, you would need to:
 
 2. **View Your Statistics**
    - **Overview Section**: Shows total windows, tabs, unique domains, and average tabs per window
-   - **Top 20 Domains**: Lists your most frequently visited domains with tab counts
+   - **Top 20 Domains**: Lists your most frequently visited domains with tab counts and action buttons
 
-3. **Refresh Data**
+3. **Manage Your Tabs**
+   - **🪟 New button** (orange): Move ALL tabs of a domain to a new dedicated window
+     - Appears for any domain with 2+ tabs
+     - Great for isolating work on specific sites
+   - **📂 Group button** (blue): Consolidate scattered tabs into one existing window
+     - Only appears when tabs are spread across multiple windows
+     - Moves tabs to the window with the most tabs for that domain
+   - **Window indicator** (e.g., "2w"): Shows how many windows contain tabs for that domain
+
+4. **Refresh Data**
    - Click the **"🔄 Refresh Stats"** button to update statistics
    - The extension auto-refreshes every 30 seconds while the popup remains open
 
-4. **Interpret the Results**
+5. **Interpret the Results**
    - 🥇🥈🥉 medals indicate your top 3 most-visited domains
    - Green badges show the exact number of tabs for each domain
    - Domains are sorted from most to least tabs
+   - Action buttons appear based on your tab distribution patterns
 
 ## 🔧 How It Works
 
@@ -100,15 +118,15 @@ The extension uses Firefox's WebExtensions API to:
 3. **Extract Domains**: Parses URLs to identify unique domains, removing "www." prefixes
 4. **Calculate Statistics**: Processes data to generate comprehensive statistics
 5. **Display Results**: Presents information in an organized, easy-to-read format
+6. **Manage Tabs**: Provides actions to organize tabs using `browser.tabs.move()` and `browser.windows.create()`
 
 ## 🛡️ Permissions
 
 The extension requires these permissions:
 
-- **`tabs`**: To access information about open tabs across all windows
-- **`activeTab`**: To interact with the currently active tab
+- **`tabs`**: To access and manage tab information across all windows, including moving tabs between windows
 
-*The extension only reads tab information and does not modify, store, or transmit any data.*
+*The extension only reads tab information for statistics and moves tabs when you explicitly click action buttons. No data is stored, modified beyond your requests, or transmitted externally.*
 
 ## 🚨 Troubleshooting
 
@@ -116,14 +134,21 @@ The extension requires these permissions:
 - Click the puzzle piece icon (⋯) in the Firefox toolbar
 - Find "Tab Stats Analyzer" and click the pin icon to make it visible
 
-### "Error loading tab statistics"
-- Ensure the extension has proper permissions
-- Try refreshing by clicking the refresh button
-- Restart Firefox and try again
+### No Action Buttons Visible
+- Action buttons only appear for domains with multiple tabs
+- **🪟 New** button appears for any domain with 2+ tabs
+- **📂 Group** button only appears when tabs are spread across multiple windows
+- If all your tabs are single instances in separate windows, no buttons will show
 
-### No Tabs Found
-- This can happen if all tabs are special pages (like `about:` pages)
-- Open some regular websites and refresh the statistics
+### Buttons Not Working
+- Ensure you've reloaded the extension after updates
+- Check browser console for error messages (right-click popup → Inspect → Console)
+- Verify the extension has proper tab permissions
+
+### "Error moving tabs"
+- This can happen if tabs are pinned (pinned tabs cannot be moved)
+- Some special tabs (like `about:` pages) may not be moveable
+- Try with regular website tabs first
 
 ### Extension Disappears After Firefox Restart
 - This is normal for temporary installations
@@ -148,10 +173,12 @@ This project is open source and available under the [MIT License](LICENSE).
 Potential features for future versions:
 - Export statistics to CSV/JSON
 - Historical data tracking
-- Tab grouping by domain
-- Memory usage statistics
-- Duplicate tab detection
-- Custom domain filtering
+- Custom domain filtering and grouping rules
+- Memory usage statistics per domain
+- Duplicate tab detection and removal
+- Keyboard shortcuts for quick tab management
+- Bulk tab operations (close all tabs from domain)
+- Tab session management and restoration
 
 ## 📞 Support
 
